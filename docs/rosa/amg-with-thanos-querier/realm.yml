@@ -1,0 +1,82 @@
+apiVersion: keycloak.org/v1alpha1
+kind: KeycloakRealm
+metadata:
+  name: awsrealm
+  labels:
+    app: sso
+  namespace: rhsso
+spec:
+  instanceSelector:
+    matchLabels:
+      app: sso
+  realm:
+    clients:
+    - enabled: true
+      fullScopeAllowed: true
+      redirectUris:
+      - 'SAML_REDIRECT_URI'
+      clientId: SAML_CLIENT_ID
+      defaultClientScopes:
+      - role_list
+      implicitFlowEnabled: false
+      publicClient: false
+      standardFlowEnabled: true
+      protocol: saml
+      attributes:
+        saml.server.signature: 'false'
+        saml.client.signature: 'false'
+        saml.force.post.binding: 'true'
+        saml_assertion_consumer_url_post: SAML_ASSERTION_CONSUMER_URL_POST
+        saml.assertion.signature: 'true'
+        saml.signature.algorithm: RSA_SHA256
+        saml_signature_canonicalization_method: 'http://www.w3.org/2001/10/xml-exc-c14n#'
+        saml.authnstatement: 'true'
+        saml_name_id_format: username
+      protocolMappers:
+      - config:
+          attribute.name: Roles
+          attribute.nameformat: Basic
+          friendly.name: Roles
+          single: 'true'
+        name: Roles
+        protocol: saml
+        protocolMapper: saml-role-list-mapper
+      - config:
+          attribute.name: mail
+          attribute.nameformat: 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri'
+          consentRequired: 'false'
+          friendly.name: email
+          user.attribute: email
+        name: email
+        protocol: saml
+        protocolMapper: saml-user-property-mapper
+      - config:
+          attribute.name: displayName
+          attribute.nameformat: Basic
+          user.attribute: displayName
+        name: displayName
+        protocol: saml
+        protocolMapper: saml-user-attribute-mapper
+      directAccessGrantsEnabled: false
+    users:
+      - realmRoles:
+          - grafanaadmin
+        credentials:
+          - type: password
+            value: SAML_USER_PASSWORD
+        lastName: Test
+        enabled: true
+        emailVerified: true
+        username: trytest
+        firstName: Try
+        email: trytest@example.org
+        attributes:
+          displayName:
+            - Try Test
+    roles:
+      realm:
+        - name: grafanaadmin
+    id: awsrealm
+    realm: awsrealm
+    enabled: true
+    displayName: awsrealm
