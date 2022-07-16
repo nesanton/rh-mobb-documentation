@@ -51,7 +51,7 @@ Install it with default settings into some new namespace, e.g. "rhsso".
 Create an instance of keycloak:
 
 ```bash
-echo << EOF | oc apply -f
+echo << EOF | oc apply -f -
 apiVersion: keycloak.org/v1alpha1
 kind: Keycloak
 metadata:
@@ -115,7 +115,7 @@ SAML client is made with the minimally needed set of assertion attributes for th
 Red Hat SSO can also act as a broker, providing the users from another IdP. See [Bonus-2](bonus-2-configure-rh-sso-as-an-idp-broker) for details.
 
 ```bash
-cat << EOF | envsubst | oc apply -f
+cat << EOF | envsubst | oc apply -f -
 apiVersion: keycloak.org/v1alpha1
 kind: KeycloakRealm
 metadata:
@@ -132,8 +132,8 @@ spec:
     - enabled: true
       fullScopeAllowed: true
       redirectUris:
-      - 'SAML_REDIRECT_URI'
-      clientId: SAML_CLIENT_ID
+      - "${SAML_REDIRECT_URI}"
+      clientId: ${SAML_CLIENT_ID}
       defaultClientScopes:
       - role_list
       implicitFlowEnabled: false
@@ -144,7 +144,7 @@ spec:
         saml.server.signature: 'false'
         saml.client.signature: 'false'
         saml.force.post.binding: 'true'
-        saml_assertion_consumer_url_post: SAML_ASSERTION_CONSUMER_URL_POST
+        saml_assertion_consumer_url_post: ${SAML_ASSERTION_CONSUMER_URL_POST}
         saml.assertion.signature: 'true'
         saml.signature.algorithm: RSA_SHA256
         saml_signature_canonicalization_method: 'http://www.w3.org/2001/10/xml-exc-c14n#'
@@ -162,7 +162,6 @@ spec:
       - config:
           attribute.name: mail
           attribute.nameformat: 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri'
-          consentRequired: 'false'
           friendly.name: email
           user.attribute: email
         name: email
@@ -170,27 +169,25 @@ spec:
         protocolMapper: saml-user-property-mapper
       - config:
           attribute.name: displayName
-          attribute.nameformat: Basic
-          user.attribute: displayName
+          attribute.nameformat: 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri'
+          friendly.name: displayName
+          user.attribute: username
         name: displayName
         protocol: saml
-        protocolMapper: saml-user-attribute-mapper
+        protocolMapper: saml-user-property-mapper
       directAccessGrantsEnabled: false
     users:
       - realmRoles:
           - grafanaadmin
         credentials:
           - type: password
-            value: SAML_USER_PASSWORD
+            value: ${SAML_USER_PASSWORD}
         lastName: Test
         enabled: true
         emailVerified: true
         username: trytest
         firstName: Try
         email: trytest@example.org
-        attributes:
-          displayName:
-            - Try Test
     roles:
       realm:
         - name: grafanaadmin
@@ -260,4 +257,38 @@ If you get a colorful graph - we've successfully connected Amazon Managed Grafan
 
 ## Bonus-2: Configure RH SSO as an IdP broker
 
-//TODO
+//TODO description
+
+
+```bash
+BROKER_CLIENT_ID=keycloak-broker
+BROKER_CLIENT_SECRET=$(pwgen -Bcy -1 128)
+KEYCLOAK_ROUTE="https://$(oc get route keycloak -n rhsso --template={{.spec.host}})"
+BROKER_REDIRECT_URI="${KEYCLOAK_ROUTE}/auth/realms/awsrealm/broker/openshift-v4/endpoint"
+```
+
+* Add identity provider with client_id and secret 
+
+//TODO - can add as part of the Realm CRD
+
+* Set default browser flow
+
+//TODO - unlikely to get it working via CRDs
+
+* Add an OAuth client
+
+```bash
+cat << EOF | envsubst | oc apply -f -
+kind: OAuthClient
+apiVersion: oauth.openshift.io/v1
+metadata:
+ name: ${BROKER_CLIENT_ID}
+secret: ${BROKER_CLIENT_SECRET}
+redirectURIs:
+ - "${BROKER_REDIRECT_URI}"
+grantMethod: prompt
+EOF
+```
+
+Voila!
+
